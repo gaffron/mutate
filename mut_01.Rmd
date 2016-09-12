@@ -1,0 +1,221 @@
+---
+title: "rbcL mutations"
+author: "Piotr Gawroński"
+date: "18 sierpnia 2016"
+output: html_document
+---
+
+The idea of the following analysis is to design mutants with decreased RNA secondary structure and affinity to aSD of sites surrounding ribosome pause site 1193 in rbcL:
+
+<img src="data/Fig_5.svg" alt="Mountain View" style="width:900px">
+
+## SD
+
+With SD sequence situation is quite simple. I have tested all possible combinations (32) of mutations, without altered aa composition. You can se plots of delta-G value of all mutant variants and WT. I also calculated delta-G for regions surrounding our SD sequence. At position 20 there is a value of our wild type SD sequence. As you can see some mutations do not alter delta-G, while some significantly increase delta-G.
+
+```{r read_data_01, include = F}
+library(Biostrings); source("bin/functions.R"); library(ggplot2)
+codons_table <- read.table("data/codons", header = T)
+rbcL <- readDNAStringSet("data/rbcL.fas")
+
+rbcL_codons <- DNAs2codons(rbcL)[[1]]
+rbcL_codons$start <- rbcL_codons$codon*3 -2
+rbcL_codons$end   <- rbcL_codons$codon*3
+```
+
+```{r mutate_rbcL_SD, cache = T, include=F}
+
+# mutating SD sequence, as a target i select codons from 394 to 397
+
+selected_codons <- rbcL_codons[394:397,]
+alt_codons <- vector("list", length = nrow(selected_codons))
+for(i in 1:nrow(selected_codons)){
+  my_aa <- codons_table[codons_table$codon == selected_codons[i,1],2]
+  alt_codons[[i]] <- as.vector(codons_table[codons_table$aa == my_aa,1])
+}
+
+codons_comb <- expand.grid(alt_codons)
+codons_comb_SD <- apply(codons_comb, 1, paste, collapse = "")
+
+sd_wt <- paste(rbcL_codons[391:400,1], collapse = "")
+free2bind2(sequence1 = DNAString(sd_wt))
+
+# expanding random sequences by 3 codon at each site
+left_b <- paste(rbcL_codons[391:393,1], collapse = "")
+right_b <- paste(rbcL_codons[398:400,1], collapse = "")
+my_sequences <- paste(left_b, codons_comb_SD, right_b, sep = "")
+
+my_list <- vector("list", length = length(my_sequences))
+for(i in 1:length(my_sequences)){
+  print(i)
+  my_temp <- free2bind2(sequence1 = DNAString(my_sequences[i]))
+  my_temp <- my_temp[,2:3]
+  my_temp$name <- paste("seq_", i, sep = "")
+  if(my_sequences[i] == sd_wt){
+    my_temp$type <- "WT"
+  }else{
+    my_temp$type <- "mutant"
+  }
+  my_list[[i]] <- my_temp
+}
+my_data <- do.call(rbind.data.frame, my_list)
+
+
+rm(alt_codons, codons_comb, i, left_b, codons_comb_SD, my_aa, my_list, my_sequences, my_temp, right_b, sd_wt, selected_codons)
+```
+
+```{r plots_SD, echo=F, fig.width=4.5, fig.height=3}
+ggplot(my_data, aes(end, deltaG, colour = type)) + geom_line(aes(group = name), alpha = 0.1) + theme_bw()
+#ggplot(my_data, aes(end, name, fill = deltaG)) + geom_tile(color="white", size=0.1)
+
+```
+
+
+The best result is obtained when  when GG_A_GAT is mutated to GG_C_GAT.
+
+## Structure
+
+With structure at the beginning I also wanted to test all possible combinations. But I realized that there are more than 400 million combinations. I is far to much to test all of them. Therefore I randomly select mutations and evaluate them. So far I analyzed 25000 mutations ans selected those that should be the best. However, the task is not trivial. Firstly, it is not possible to obtain mfe value higher than -7.5. Moreover, these mutations are usually causing stronger structure close by...
+
+Below there is a plot of best mutants (obtained so far). The last (bottom right) small plot is a mfe profile of WT sequence. The value of structure that possibly causes ribosome pausing (pos 1193) is at position 75. Similarly to previous analysis the mfe was calculated using sliding window approach. 
+
+```{r mutate_STR, cache = T, include=F}
+source("bin/functions.R")
+rbcL <- readDNAStringSet("data/rbcL.fas")
+
+my_res_list <- vector("list", length = 25)
+for(i in 1:25){
+  my_res_list[[i]] <- mutate.codons(seq = rbcL[[1]], codon_mut = 401:417, codon_ext = 17, max_comb = 1000, max_res = 3)
+}
+
+my_res <- lapply(my_res_list, function(x) x[[1]])
+my_res_df <- do.call(rbind.data.frame, my_res)
+```
+
+```{r plot_str, fig.width=9, fig.height=9, echo = F, eval = F, include = F}
+ggplot(my_res_df, aes(mid, mfe, colour = name)) + geom_line(aes(shape = factor(type))) + 
+  geom_hline(yintercept = -11.1) +
+  facet_wrap(facets = ~name) +
+  theme_bw() + theme(legend.position="none")
+```
+
+For example sequences 356695 and 357077 are promissing: 
+
+```{r plot_str_selected, echo = F, message=F, fig.height=3, fig.width=4.5}
+library(dplyr)
+my_res_df_sel <- my_res_df %>% filter(name %in% c("WT", "356695", "357077"))
+ggplot(my_res_df_sel, aes(mid, mfe, colour = name)) + geom_line(aes(shape = factor(type))) + 
+  geom_hline(yintercept = -11.1) +
+  theme_bw()
+
+```
+
+```{r include = F}
+library(Biostrings)
+my_seq <- lapply(my_res_list, function(x) x[[2]])
+my_seq2 <- do.call(c, my_seq)
+as.character(my_seq2[names(my_seq2) %in% c("WT", "356695", "357077")])
+
+translate(my_seq2)
+
+```
+
+
+### Stronger structure
+Interestingly it is quite easy to obtain stronger structure:
+
+
+```{r mutate_STR2, cache = T, include=F}
+source("bin/functions.R")
+rbcL <- readDNAStringSet("data/rbcL.fas")
+
+my_res_list2 <- vector("list", length = 5)
+for(i in 1:5){
+  my_res_list2[[i]] <- mutate.codons2(seq = rbcL[[1]], codon_mut = 401:417, codon_ext = 17, max_comb = 1000, max_res = 3)
+}
+
+my_res2 <- lapply(my_res_list2, function(x) x[[1]])
+my_res_df2 <- do.call(rbind.data.frame, my_res2)
+```
+
+```{r plot_str2, fig.width=6, fig.height=6, echo = F}
+ggplot(my_res_df2, aes(mid, mfe, colour = name)) + geom_line(aes(shape = factor(type))) + 
+  geom_hline(yintercept = -11.1) +
+  facet_wrap(facets = ~name) +
+  theme_bw() + theme(legend.position="none")
+```
+
+
+### Another attempt to mutate structure
+
+```{r mutate_STR_2, cache = T, include=F}
+source("bin/functions.R")
+rbcL <- readDNAStringSet("data/rbcL.fas")
+
+my_res_list2 <- vector("list", length = 100)
+for(i in 1:100){
+  my_res_list2[[i]] <- mutate.codons(seq = rbcL[[1]], codon_mut = 401:417, codon_ext = 17, max_comb = 1000, max_res = 3)
+}
+
+my_res2 <- lapply(my_res_list2, function(x) x[[1]])
+my_res_df2 <- do.call(rbind.data.frame, my_res2)
+```
+
+```{r plot_str_2, fig.width=9, fig.height=29, eval = F, include= F}
+ggplot(my_res_df2, aes(mid, mfe, colour = name)) + geom_line(aes(shape = factor(type))) + 
+  geom_hline(yintercept = -11.1) +
+  facet_wrap(facets = ~name, ncol = 10) +
+  theme_bw() + theme(legend.position="none")
+```
+
+```{r mutate_STR_3, cache = T, include=F}
+source("bin/functions.R")
+rbcL <- readDNAStringSet("data/rbcL.fas")
+
+my_res_list3 <- vector("list", length = 100)
+for(i in 1:100){
+  my_res_list3[[i]] <- mutate.codons(seq = rbcL[[1]], codon_mut = 401:417, codon_ext = 17, max_comb = 1000, max_res = 3)
+}
+
+my_res3 <- lapply(my_res_list3, function(x) x[[1]])
+my_res_df3 <- do.call(rbind.data.frame, my_res3)
+```
+
+```{r plot_str_3, fig.width=9, fig.height=29, eval = F, include= F}
+ggplot(my_res_df3, aes(mid, mfe, colour = name)) + geom_line(aes(shape = factor(type))) + 
+  geom_hline(yintercept = -11.1) +
+  facet_wrap(facets = ~name, ncol = 10) +
+  theme_bw() + theme(legend.position="none")
+```
+
+```{r get_seqs_3, echo = F, fig.height=3, fig.width=4.5, fig.show="hold"}
+seqs3 <- do.call(c, lapply(my_res_list3, function(x){x$sequences}))
+seqs2 <- do.call(c, lapply(my_res_list2, function(x){x$sequences}))
+
+as.character(c(seqs2[names(seqs2) %in% c("3058284", "2931883")], seqs3[names(seqs3) %in% c("2798933", "1825455")]))
+
+
+my_res_df_sel2 <- my_res_df2 %>% filter(name %in% c("WT", "3058284", "2931883"))
+ggplot(my_res_df_sel2, aes(mid, mfe, colour = name)) + geom_line(aes(shape = factor(type))) + 
+  geom_hline(yintercept = -11.1) +
+  theme_bw()
+
+my_res_df_sel3 <- my_res_df3 %>% filter(name %in% c("WT", "2798933", "1825455"))
+ggplot(my_res_df_sel3, aes(mid, mfe, colour = name)) + geom_line(aes(shape = factor(type))) + 
+  geom_hline(yintercept = -11.1) +
+  theme_bw()
+
+
+
+```
+
+
+
+
+List of objects:
+```{r, echo=F}
+setdiff(ls(), lsf.str())
+```
+
+
+
