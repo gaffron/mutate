@@ -9,6 +9,8 @@ The idea of the following analysis is to design mutants with decreased RNA secon
 
 <img src="data/Fig_5.svg" alt="Mountain View" style="width:900px">
 
+# Mutating A. thaliana rbcL
+
 ## SD
 
 With SD sequence situation is quite simple. I have tested all possible combinations (32) of mutations, without altered aa composition. You can se plots of delta-G value of all mutant variants and WT. I also calculated delta-G for regions surrounding our SD sequence. At position 20 there is a value of our wild type SD sequence. As you can see some mutations do not alter delta-G, while some significantly increase delta-G.
@@ -207,6 +209,43 @@ ggplot(my_res_df_sel3, aes(mid, mfe, colour = name)) + geom_line(aes(shape = fac
 
 
 
+```
+
+# Mutating N. tabacum rbcL
+
+```{r mutate_nt_str1, cache= T, include= F}
+rbcL <- readDNAStringSet("data/rbcL.fas")
+my_res_list_nt1 <- vector("list", length = 100)
+for(i in 1:100){
+  my_res_list_nt1[[i]] <- mutate.codons(seq = rbcL[[2]], codon_mut = 401:417, 
+                                    codon_ext = 17, max_comb = 1000, max_res = 3)
+}
+my_res_nt1 <- lapply(my_res_list_nt1, function(x) x[[1]])
+my_res_df_nt1 <- do.call(rbind.data.frame, my_res_nt1)
+```
+
+```{r plot_nt_str_1, fig.width=9, fig.height=29}
+ggplot(my_res_df_nt1, aes(mid, mfe, colour = name)) + geom_line(aes(shape = factor(type))) + 
+  geom_hline(yintercept = -11.1) +
+  facet_wrap(facets = ~name, ncol = 10) +
+  theme_bw() + theme(legend.position="none")
+```
+
+```{r mutate_nt_str2, cache= T, include= F}
+my_res_list_nt2 <- vector("list", length = 100)
+for(i in 1:100){
+  my_res_list_nt2[[i]] <- mutate.codons(seq = rbcL[[2]], codon_mut = 401:417, 
+                                    codon_ext = 17, max_comb = 1000, max_res = 3)
+}
+my_res_nt2 <- lapply(my_res_list_nt2, function(x) x[[1]])
+my_res_df_nt2 <- do.call(rbind.data.frame, my_res_nt2)
+```
+
+```{r plot_nt_str_2, fig.width=9, fig.height=29}
+ggplot(my_res_df_nt2, aes(mid, mfe, colour = name)) + geom_line(aes(shape = factor(type))) + 
+  geom_hline(yintercept = -11.1) +
+  facet_wrap(facets = ~name, ncol = 10) +
+  theme_bw() + theme(legend.position="none")
 ```
 
 
