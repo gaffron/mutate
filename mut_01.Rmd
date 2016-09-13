@@ -213,6 +213,12 @@ ggplot(my_res_df_sel3, aes(mid, mfe, colour = name)) + geom_line(aes(shape = fac
 
 # Mutating N. tabacum rbcL
 
+## SD
+The sequence of SD region in N. tabacum is almost identical as in A. thaliana. Thus, we can use the same mutation. 
+The best result is obtained when  when GG_G_GAT is mutated to GG_C_GAT.
+
+## Structure
+
 ```{r mutate_nt_str1, cache= T, include= F}
 rbcL <- readDNAStringSet("data/rbcL.fas")
 my_res_list_nt1 <- vector("list", length = 100)
@@ -224,7 +230,7 @@ my_res_nt1 <- lapply(my_res_list_nt1, function(x) x[[1]])
 my_res_df_nt1 <- do.call(rbind.data.frame, my_res_nt1)
 ```
 
-```{r plot_nt_str_1, fig.width=9, fig.height=29}
+```{r plot_nt_str_1, fig.width=9, fig.height=29, eval = F, include = F}
 ggplot(my_res_df_nt1, aes(mid, mfe, colour = name)) + geom_line(aes(shape = factor(type))) + 
   geom_hline(yintercept = -11.1) +
   facet_wrap(facets = ~name, ncol = 10) +
@@ -241,13 +247,29 @@ my_res_nt2 <- lapply(my_res_list_nt2, function(x) x[[1]])
 my_res_df_nt2 <- do.call(rbind.data.frame, my_res_nt2)
 ```
 
-```{r plot_nt_str_2, fig.width=9, fig.height=29}
+```{r plot_nt_str_2, fig.width=9, fig.height=29, eval = F, include = F}
 ggplot(my_res_df_nt2, aes(mid, mfe, colour = name)) + geom_line(aes(shape = factor(type))) + 
   geom_hline(yintercept = -11.1) +
   facet_wrap(facets = ~name, ncol = 10) +
   theme_bw() + theme(legend.position="none")
 ```
 
+```{r get_seqs_nt, echo = F, fig.height=3, fig.width=4.5, fig.show="hold"}
+seqs1nt <- do.call(c, lapply(my_res_list_nt1, function(x){x$sequences}))
+seqs2nt <- do.call(c, lapply(my_res_list_nt2, function(x){x$sequences}))
+
+as.character(c(seqs1nt[names(seqs1nt) %in% c("862685", "2661214")], seqs2nt[names(seqs2nt) %in% c("1356703", "781783")]))
+
+my_res_df_sel_nt1 <- my_res_df_nt1 %>% filter(name %in% c("WT", "862685", "2661214"))
+ggplot(my_res_df_sel_nt1, aes(mid, mfe, colour = name)) + geom_line(aes(shape = factor(type))) + 
+  geom_hline(yintercept = -11.1) +
+  theme_bw()
+
+my_res_df_sel_nt2 <- my_res_df_nt2 %>% filter(name %in% c("WT", "1356703", "781783"))
+ggplot(my_res_df_sel_nt2, aes(mid, mfe, colour = name)) + geom_line(aes(shape = factor(type))) + 
+  geom_hline(yintercept = -11.1) +
+  theme_bw()
+```
 
 
 
